@@ -1,0 +1,8 @@
+# Credentials — never commit secrets
+.credentials.json
+*.key
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
