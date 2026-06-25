@@ -59,7 +59,7 @@ mem9 credentials live in a **shared profile file** that the Codex plugin also
 reads, so configuring once works for both:
 
 ```
-~/.mem9/.credentials.json      # $MEM9_HOME defaults to ~/.mem9
+~/.mem9/.credentials.json
 ```
 
 The simplest path: open ZCode and run
@@ -93,23 +93,6 @@ cat > ~/.mem9/.credentials.json <<'EOF'
 EOF
 chmod 600 ~/.mem9/.credentials.json
 ```
-
-### Environment overrides (optional)
-
-Env vars take precedence over the file **when set and non-empty**:
-
-| Variable | Purpose |
-| --- | --- |
-| `MEM9_API_KEY` | Override the API key |
-| `MEM9_API_URL` | Override the base URL |
-| `MEM9_AGENT_ID` | Per-agent identity header (default `zcode`) |
-| `MEM9_HOME` | Credential-file dir (default `~/.mem9`) |
-
-> **Why a file, not just env vars?** ZCode's Bash tool spawns non-interactive
-> shells that do not source `~/.zshrc`, so `export MEM9_API_KEY=...` in a shell
-> rc file is **not** reliably inherited by skill commands. The credential file
-> is the reliable source. Env vars are still honored as an override when present
-> in the actual process environment.
 
 ## Usage
 
@@ -146,11 +129,9 @@ in the mem9 repo):
 }
 ```
 
-Resolution order (matches `resolveRuntimeConfig`):
-
-1. `MEM9_API_KEY` / `MEM9_API_URL` env (if non-empty)
-2. `default` profile's `apiKey` / `baseUrl` from `$MEM9_HOME/.credentials.json`
-3. Base URL falls back to `https://api.mem9.ai`
+The skills read the `default` profile's `apiKey` and `baseUrl` from
+`~/.mem9/.credentials.json`. Base URL defaults to `https://api.mem9.ai` when the
+profile omits it.
 
 ## API endpoints used
 
@@ -193,4 +174,4 @@ and reuses the same credential file so the two coexist cleanly.
 
 ## License
 
-MIT
+Apache License 2.0. See [LICENSE](LICENSE).

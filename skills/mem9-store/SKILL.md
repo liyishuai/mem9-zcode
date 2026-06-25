@@ -13,42 +13,37 @@ Trigger only on an **explicit** user request to remember or store something. Do 
 
 ## Credentials
 
-mem9 credentials are resolved the same way the codex plugin resolves them — **environment override first, then the shared credential file**:
+mem9 credentials are read from the shared profile file, the same one the codex plugin uses:
 
-| Source | Key | Notes |
-| --- | --- | --- |
-| Env override | `MEM9_API_KEY`, `MEM9_API_URL` | Take precedence over the file if set and non-empty |
-| File | `$MEM9_HOME/.credentials.json` | `$MEM9_HOME` defaults to `~/.mem9`. Uses the `default` profile |
-| Default base URL | `https://api.mem9.ai` | When neither env nor profile sets one |
+```
+~/.mem9/.credentials.json
+```
 
-Resolve them with this snippet (it prints `api_key`, `base_url`, `agent_id` on one tab-separated line, **never** echo the values yourself):
+The `default` profile's `apiKey` and `baseUrl` are used. Base URL falls back to `https://api.mem9.ai` if the profile omits it. Resolve them with this snippet (it prints `api_key`, `base_url`, `agent_id` on one tab-separated line, **never** echo the values yourself):
 
 ```bash
 set -euo pipefail
 read -r creds <<<"$(python3 - <<'PY'
 import json, os
-home = os.path.expanduser(os.environ.get("MEM9_HOME") or "~/.mem9")
-path = os.path.join(home, ".credentials.json")
-api_key = (os.environ.get("MEM9_API_KEY") or "").strip()
-base_url = (os.environ.get("MEM9_API_URL") or "").strip()
-if not api_key or not base_url:
-    try:
-        with open(path) as f:
-            p = json.load(f).get("profiles", {}).get("default", {})
-        api_key = api_key or (p.get("apiKey") or "").strip()
-        base_url = base_url or (p.get("baseUrl") or "").strip()
-    except FileNotFoundError:
-        pass
+path = os.path.expanduser("~/.mem9/.credentials.json")
+api_key = ""
+base_url = ""
+try:
+    with open(path) as f:
+        p = json.load(f).get("profiles", {}).get("default", {})
+    api_key = (p.get("apiKey") or "").strip()
+    base_url = (p.get("baseUrl") or "").strip()
+except FileNotFoundError:
+    pass
 base_url = (base_url or "https://api.mem9.ai").rstrip("/")
-agent_id = os.environ.get("MEM9_AGENT_ID") or "zcode"
-print("\t".join([api_key, base_url, agent_id]))
+print("\t".join([api_key, base_url, "zcode"]))
 PY
 )"
 api_key="${creds%%	*}"; rest="${creds#*	}"
 base_url="${rest%%	*}"; agent_id="${rest#*	}"
 
 if [ -z "$api_key" ]; then
-  echo "MEM9_API_KEY is not set and no default profile was found in ${MEM9_HOME:-~/.mem9}/.credentials.json. Run /mem9-setup." >&2
+  echo "No default profile found in ~/.mem9/.credentials.json. Run /mem9-setup." >&2
   exit 1
 fi
 ```
@@ -84,5 +79,5 @@ The `python3` step builds the JSON body safely — it handles quotes, newlines, 
 ## Reference
 
 - Endpoint: `POST /v1alpha2/mem9s/memories` with body `{"content": "<text>", "sync": true}`.
-- Credential resolution mirrors `codex-plugin/lib/config.mjs` `resolveRuntimeConfig`.
+- Credential source mirrors `codex-plugin/lib/config.mjs` `resolveRuntimeConfig` (file only).
 - API contract: [`server/internal/handler/handler.go`](https://github.com/mem9-ai/mem9/blob/main/server/internal/handler/handler.go).

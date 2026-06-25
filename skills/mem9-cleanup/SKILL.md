@@ -9,12 +9,11 @@ Remove mem9 credentials from this ZCode environment.
 
 ## What cleanup does and does not do
 
-mem9 credentials live in a **shared profile file** (`$MEM9_HOME/.credentials.json`, default `~/.mem9`), the same one the codex plugin uses. Cleanup removes the `default` profile ZCode relies on. It is local and reversible, but it affects codex too if codex uses the same `default` profile.
+mem9 credentials live in a **shared profile file** (`~/.mem9/.credentials.json`), the same one the codex plugin uses. Cleanup removes the `default` profile ZCode relies on. It is local and reversible, but it affects codex too if codex uses the same `default` profile.
 
 | Does | Does not |
 | --- | --- |
-| Remove the `default` profile from `$MEM9_HOME/.credentials.json` (or the whole file if it's the only profile) | Delete the mem9 account or any memories on the server |
-| Unset `MEM9_API_KEY` / `MEM9_API_URL` from the live session | Touch other profiles in the credential file (unless asked) |
+| Remove the `default` profile from `~/.mem9/.credentials.json` (or the whole file if it's the only profile) | Delete the mem9 account or any memories on the server |
 | Disconnect ZCode (and codex, if sharing the profile) from mem9 | Cancel billing or revoke the key server-side |
 
 To revoke a key or delete stored memories, the user must do that from the mem9 dashboard.
@@ -32,9 +31,7 @@ To revoke a key or delete stored memories, the user must do that from the mem9 d
 set -euo pipefail
 python3 - <<'PY'
 import json, os
-home = os.path.expanduser(os.environ.get("MEM9_HOME") or "~/.mem9")
-path = os.path.join(home, ".credentials.json")
-env_key = bool((os.environ.get("MEM9_API_KEY") or "").strip())
+path = os.path.expanduser("~/.mem9/.credentials.json")
 file_has_default = False
 profiles = []
 try:
@@ -44,8 +41,7 @@ try:
     file_has_default = "default" in profiles
 except FileNotFoundError:
     pass
-print(json.dumps({"status": "set" if (env_key or file_has_default) else "already_clean",
-                  "env_key_set": env_key,
+print(json.dumps({"status": "set" if file_has_default else "already_clean",
                   "file_path": path,
                   "file_has_default_profile": file_has_default,
                   "all_profiles": profiles}))
@@ -56,7 +52,6 @@ Read the JSON:
 
 - `already_clean` → nothing to do. Tell the user.
 - `set` with `file_has_default_profile: true` → go to step 2.
-- `env_key_set: true` but no file profile → only the live env var is set; step 3 handles it.
 
 ### 2. Remove the `default` profile from the credential file
 
@@ -66,8 +61,7 @@ By default remove only the `default` profile, **preserving any other profiles** 
 set -euo pipefail
 python3 - <<'PY'
 import json, os
-home = os.path.expanduser(os.environ.get("MEM9_HOME") or "~/.mem9")
-path = os.path.join(home, ".credentials.json")
+path = os.path.expanduser("~/.mem9/.credentials.json")
 try:
     with open(path) as f:
         data = json.load(f)
@@ -95,20 +89,10 @@ PY
 If the user explicitly wants to wipe **all** profiles (full reset), remove the whole file instead:
 
 ```bash
-rm -f "${MEM9_HOME:-$HOME/.mem9}/.credentials.json"
+rm -f ~/.mem9/.credentials.json
 ```
 
-### 3. Unset env overrides from the live session
-
-Only relevant if `MEM9_API_KEY` / `MEM9_API_URL` were set in this session:
-
-```bash
-unset MEM9_API_KEY MEM9_API_URL MEM9_AGENT_ID
-```
-
-This does not persist to future sessions. (And remember: env vars exported in `~/.zshrc` are **not** inherited by ZCode's non-interactive Bash shells anyway, so there is usually nothing to unset.)
-
-### 4. Confirm
+### 3. Confirm
 
 Re-run step 1. Expect `status: already_clean`. Tell the user recall/store will now fail with "no default profile was found" until they re-run `/mem9-setup`.
 
@@ -123,5 +107,5 @@ Re-run step 1. Expect `status: already_clean`. Tell the user recall/store will n
 
 ## Reference
 
-- This skill edits `$MEM9_HOME/.credentials.json` (default `~/.mem9/.credentials.json`), the same file codex uses. Schema and path mirror `codex-plugin/lib/config.mjs`.
+- This skill edits `~/.mem9/.credentials.json`, the same file codex uses. Schema and path mirror `codex-plugin/lib/config.mjs`.
 - No server endpoints are called.
