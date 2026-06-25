@@ -1,7 +1,8 @@
 # mem9 for ZCode
 
-Persistent cloud memory for [ZCode](https://z.ai) coding agents, via four local
-skills: **recall**, **store**, **setup**, **cleanup**.
+Persistent cloud memory for [ZCode](https://z.ai) coding agents, via seven local
+skills covering the full memory lifecycle: **recall**, **store**, **list**,
+**update**, **delete**, **setup**, **cleanup**.
 
 These skills let a ZCode agent read and write [mem9](https://mem9.ai) memories
 the same way the official Codex and Claude Code plugins do — but installed under
@@ -12,8 +13,11 @@ ZCode's own skill discovery paths and reusing the **shared mem9 credential file*
 
 | Skill | `/`-command | What it does |
 | --- | --- | --- |
-| `mem9-recall` | `/mem9-recall` | Look up saved memories for the current task |
+| `mem9-recall` | `/mem9-recall` | Look up memories relevant to the current task (semantic search) |
 | `mem9-store` | `/mem9-store` | Save one fact / preference / instruction |
+| `mem9-list` | `/mem9-list` | Browse, count, or paginate all stored memories (no query) |
+| `mem9-update` | `/mem9-update` | Edit an existing memory's content / tags |
+| `mem9-delete` | `/mem9-delete` | Remove one or many memories (single or batch) |
 | `mem9-setup` | `/mem9-setup` | Inspect, provision, or fix mem9 credentials |
 | `mem9-cleanup` | `/mem9-cleanup` | Remove the local mem9 profile (disconnect ZCode) |
 
@@ -100,6 +104,9 @@ Once configured, just talk to ZCode naturally — the skills trigger on intent:
 
 - **"what did we decide about the deploy schedule?"** → `mem9-recall`
 - **"remember that we pin Node 22 for hooks"** → `mem9-store`
+- **"what's in my memory?" / "how many memories do I have?"** → `mem9-list`
+- **"correct that memory to say X" / "fix what you saved earlier"** → `mem9-update`
+- **"delete that memory" / "forget what I said about Y"** → `mem9-delete`
 - **"set up mem9" / "is mem9 working?"** → `mem9-setup`
 - **"disconnect mem9 from zcode"** → `mem9-cleanup`
 
@@ -137,8 +144,12 @@ profile omits it.
 
 | Skill | Method & path |
 | --- | --- |
-| recall | `GET /v1alpha2/mem9s/memories?q=…&limit=…` |
+| recall | `GET /v1alpha2/mem9s/memories?q=…&limit=…` (semantic search) |
 | store | `POST /v1alpha2/mem9s/memories` body `{"content": "…", "sync": true}` |
+| list | `GET /v1alpha2/mem9s/memories?limit=…&offset=…` (browse, no `q`) |
+| update | `PUT /v1alpha2/mem9s/memories/{id}` body `{content?, tags?}` |
+| delete (single) | `DELETE /v1alpha2/mem9s/memories/{id}` → `204` |
+| delete (batch) | `POST /v1alpha2/mem9s/memories/batch-delete` body `{"ids": […]}` |
 | setup (validate) | `GET /v1alpha2/status` |
 | setup (provision) | `POST /v1alpha1/mem9s` |
 
@@ -157,7 +168,9 @@ All requests send `X-API-Key` and `X-Mnemo-Agent-Id: zcode` headers.
 
 ```bash
 rm -rf ~/.zcode/skills/mem9-recall ~/.zcode/skills/mem9-store \
-       ~/.zcode/skills/mem9-setup ~/.zcode/skills/mem9-cleanup
+       ~/.zcode/skills/mem9-list ~/.zcode/skills/mem9-update \
+       ~/.zcode/skills/mem9-delete ~/.zcode/skills/mem9-setup \
+       ~/.zcode/skills/mem9-cleanup
 ```
 
 To also remove local credentials: run `/mem9-cleanup`, or
